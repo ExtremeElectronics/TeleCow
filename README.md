@@ -32,6 +32,9 @@ Secure, Encrypted or working...
 # Warning
 Totally not suitable for any purpose ... yet....
 
+
+![20240519_172136](https://github.com/ExtremeElectronics/TeleCow/assets/102665314/1e13163a-9166-4e92-98b3-17f6e6cc085a)
+
 ![telecow2](https://github.com/ExtremeElectronics/TeleCow/assets/102665314/0907069e-224b-4d44-8958-f5359feea896)
 
 
