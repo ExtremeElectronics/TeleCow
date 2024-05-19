@@ -14,17 +14,17 @@ Tested with Asterisk  Asterisk 18.21.0
 Very much in its infancy (see todo)
 
 ## ToDo
-Test compatability with other servers
-Intermittant no speach
-Cant Cancel out going call befre answer 
-connect gpio interface for dial, answer and indications of ringing
-Improve display
-Lockup after calls, requires reboot to make second call.
-NAT Calling issues, various and ubiquitous. 
-Voice quality improvements
-Volume up/down mike
-Volume up/down speaker
-Set Caller ID
+Test compatability with other servers, 
+Intermittant no speach, 
+Cant Cancel out going call befre answer , 
+connect gpio interface for dial, answer and indications of ringing, 
+Improve display, 
+Lockup after calls, requires reboot to make second call, 
+NAT Calling issues, various and ubiquitous, 
+Voice quality improvements, 
+Volume up/down mike, 
+Volume up/down speaker, 
+Set Caller ID.
 
 ## What it is NOT!
 Secure, Encrypted or working... 
