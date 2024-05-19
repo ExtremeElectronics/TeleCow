@@ -26,6 +26,9 @@ Volume up/down mike
 Volume up/down speaker
 Set Caller ID
 
+## What it is NOT!
+Secure, Encrypted or working... 
+
 # Warning
 Totally not suitable for any purpose ... yet....
 
