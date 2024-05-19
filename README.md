@@ -5,7 +5,7 @@ A simple VOIP/SIP telephone handset, running off a PIPICOW usinf the PIPICOW WiF
 
 Built to be as basic as possibe, but to have working "usable" hand held phone.
 
-Features, SD card, WiFi, Microphone Via A2d, Speaker Via PWM, LiPo battery with charging from USB and a SSD1306 I2C OLED display. Also has connector for external signals to trigger dial, answer and indications of ringing. PCB to be available via http://www.extkits.co.uk
+Features, SD card, WiFi, Microphone Via A2d, Speaker Via PWM, LiPo battery with charging from USB, 15 key keyboard and a SSD1306 I2C OLED display. Also has connector for external signals to trigger dial, answer and indications of ringing. PCB to be available via http://www.extkits.co.uk
 
 9 xWiFi accesspoint credentials and 9 SIP server details can be stored in the config on the SD card and an auto dial number.
 
