@@ -1,7 +1,7 @@
-# TeleCow
-Pi Picow Basic Voip(SIP) telephone 
+# Pi Tele Cow
+Pi PICOW Basic VOIP/SIP telephone 
 
-A simple VOIP/SIP telephone handset, running off a PIPICOW usinf the PIPICOW WiFi for connectivity
+A simple VOIP/SIP portable WiFi telephone handset, running off a PIPICOW using the PI PICOW WiFi for connectivity.
 
 Built to be as basic as possibe, but to have working "usable" hand held phone.
 
