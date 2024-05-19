@@ -1,0 +1,66 @@
+enum SipState {
+    SS_IDLE,
+    SS_REGISTER_UNAUTH,
+    SS_REGISTER_AUTH,
+    SS_REGISTERED,
+    SS_INVITE_UNAUTH,
+    SS_INVITE_UNAUTH_SENT,
+    SS_INVITE_AUTH,
+    SS_RINGING,
+    SS_RINGTONE,
+    SS_CALL_START,
+    SS_CALL_IN_PROGRESS_IH,
+    SS_CALL_IN_PROGRESS_IT,
+    SS_CANCELLED,
+    SS_ERROR,
+};
+
+enum PhoneState{
+    PS_IDLE,	
+//    PS_REGISTERED,
+    PS_RINGING,
+    PS_DIALLING, 
+    PS_ANSWER,	
+    PS_HANGUP,	
+    PS_DECLINED,        
+    PS_ESTABLISHED,     
+};
+
+enum CancelReason {
+    CR_UNKNOWN,
+    CR_CALL_DECLINED,
+    CR_TARGET_BUSY,
+};
+
+enum Status {
+    ST_TRYING_100,
+    ST_RINGING_180,
+    ST_SESSION_PROGRESS_183,
+    ST_OK_200,
+    ST_UNAUTHORIZED_401,
+    ST_PROXY_AUTH_REQ_407,
+    ST_BUSY_HERE_486,
+    ST_REQUEST_CANCELLED_487,
+    ST_SERVER_ERROR_500,
+    ST_DECLINE_603,
+    ST_CANCEL_127,
+    ST_UNKNOWN,
+};
+
+enum Method {
+    MD_NOTIFY,
+    MD_BYE,
+    MD_INFO,
+    MD_INVITE,
+    MD_CANCEL,
+    MD_UNKNOWN,
+    MD_OPTIONS
+};
+
+enum ContentType {
+    CT_APPLICATION_DTMF_RELAY,
+    CT_UNKNOWN
+};
+
+
+
