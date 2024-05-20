@@ -5,6 +5,14 @@ maxservers = 4;  MAX number of destination servers
 
 maxwifi = 3;  MAX number of WiFi APs to try on connect
 
+[LOCAL]
+
+sip_port = 5060; //local SIP port
+
+rtp_port = 18452; //Local RTP port
+
+device_name = "PiTeleCow1"; //Device name
+
 [WIFI#]
 
 ssid = "SSID"; SSID of the accesspoint
