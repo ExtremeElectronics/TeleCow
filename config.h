@@ -1,7 +1,5 @@
 
 
-//#define USER_AGENT "PicoSip 0.0.1"
-
 //UDP Settings
 //#define LOCAL_PORT 50666 //my port
 #define TRANSPORT_LOWER  "udp"

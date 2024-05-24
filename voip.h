@@ -1,5 +1,16 @@
+/**
+ * TELECOW
+ *
+ * https://github.com/ExtremeElectronics/TeleCow
+ *
+ * voip.h
+ *
+ * Copyright (c) 2024 Derek Woodroffe <tesla@extremeelectronics.co.uk>
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
 
-//#define PARSE_MAX 99
+
 void send_sip_udp(char* msg,int msglen);
 void send_rdp_udp(char* msg,int msglen);
 //void printPhoneState(ph_state);

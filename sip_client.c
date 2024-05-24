@@ -12,6 +12,12 @@
 #include "sip_client.h"
 #include "settings.h"
 
+#define MDDEBUG 1
+
+#define max64bit 9223372036854775807
+#define max32bit 2147483647
+#define max16bit 65535
+
 //from settings
 extern const char *server_addr[]; // = DESTINATION_ADDR ;
 extern int server_port[]; // = DESTINATION_PORT ;
@@ -19,10 +25,14 @@ extern const char *server_name[];
 extern const char *sip_username[];
 extern const char *sip_password[];
 extern const char *sip_login[];
+extern const char *server_realm[];
+extern int regwithrealm[];
 
 extern int sip_server_port;
 extern int sip_local_port;
 extern int rtp_local_port;
+
+extern int debug;
 
 extern int server;
 
@@ -104,51 +114,51 @@ void printState(enum SipState state){
     STATETEXT
     printf("\nSipState:");
     switch (state) {
-      case SS_IDLE:
-//        printf("IDLE");
-        break;
-      case SS_REGISTER_UNAUTH:
-        printf("SS_REGISTER_UNAUTH");
-        break;
-      case SS_REGISTER_AUTH:
-        printf("SS_REGISTER_AUTH");
-        break;
-      case SS_REGISTERED:
-        printf("SS_REGISTERED");
-        break;
-      case SS_INVITE_UNAUTH:
-        printf("SS_INVITE_UNAUTH");
-        break;
-      case SS_INVITE_UNAUTH_SENT:
-        printf("SS_INVITE_UNAUTH_SENT");
-        break;
-      case SS_INVITE_AUTH:
-        printf("SS_INVITE_AUTH");
-        break;
-      case SS_RINGING:
-        printf("SS_RINGING");
-        break;
-      case SS_RINGTONE:
-        printf("SS_RINGTONE");
-        break;
-      case SS_CALL_START:
-        printf("SS_CALL_START");
-        break;
-      case SS_CALL_IN_PROGRESS_IH: //inititated here
-        printf("SS_CALL_IN_PROGRESS_IH ");
-        break;
-      case SS_CALL_IN_PROGRESS_IT: //initiated there
-        printf("SS_CALL_IN_PROGRESS_IT");
-        break;
-        
-      case SS_CANCELLED:
-        printf("SS_CANCELLED");
-        break;
-      case SS_ERROR:
-        printf("SS_ERROR");
-        break;
-      default:
-        printf("SS NOT DEFINED");
+        case SS_IDLE:
+            printf("IDLE");
+            break;
+        case SS_REGISTER_UNAUTH:
+            printf("SS_REGISTER_UNAUTH");
+            break;
+        case SS_REGISTER_AUTH:
+            printf("SS_REGISTER_AUTH");
+            break;
+        case SS_REGISTERED:
+            printf("SS_REGISTERED");
+            break;
+        case SS_INVITE_UNAUTH:
+            printf("SS_INVITE_UNAUTH");
+            break;
+        case SS_INVITE_AUTH:
+            printf("SS_INVITE_AUTH");
+            break;
+        case SS_INVITE_PAUTH:
+            printf("SS_INVITE_PAUTH");
+            break;
+        case SS_RINGING:
+            printf("SS_RINGING");
+            break;
+        case SS_RINGTONE:
+            printf("SS_RINGTONE");
+            break;
+        case SS_CALL_START:
+            printf("SS_CALL_START");
+            break;
+        case SS_CALL_IN_PROGRESS_IH: //inititated here
+            printf("SS_CALL_IN_PROGRESS_IH ");
+            break;
+        case SS_CALL_IN_PROGRESS_IT: //initiated there
+            printf("SS_CALL_IN_PROGRESS_IT");
+            break;        
+        case SS_CANCELLED:
+            printf("SS_CANCELLED");
+            break;
+        case SS_ERROR:
+            printf("SS_ERROR");
+            break;
+            
+        default:
+            printf("SS NOT DEFINED");
     } 
     CLTEXT
     printf("\n");
@@ -159,81 +169,86 @@ void printRStatus(enum Status status){
     printf("\nStatus:");
     switch (status) {
 
-      case ST_TRYING_100:
-        printf("ST_TRYING_100");
-        break;
-      case ST_RINGING_180:
-        printf("ST_RINGING_180");
-        break;
-      case ST_SESSION_PROGRESS_183:
-        printf("ST_SESSION_PROGRESS_183");
-        break;
-      case ST_OK_200:
-        printf("ST_OK_200");
-        break;
-      case ST_UNAUTHORIZED_401:
-        printf("ST_UNAUTHORIZED_401");
-        break;
-      case ST_PROXY_AUTH_REQ_407:
-        printf("ST_PROXY_AUTH_REQ_407");
-        break;
-      case ST_BUSY_HERE_486:
-        printf("ST_BUSY_HERE_486");
-        break;
-      case ST_REQUEST_CANCELLED_487:
-        printf("ST_REQUEST_CANCELLED_487");
-        break;
-      case ST_SERVER_ERROR_500:
-        printf("ST_SERVER_ERROR_500");
-        break;
-      case ST_DECLINE_603:
-        printf("ST_DECLINE_603");
-        break;
-      case ST_CANCEL_127:
-        printf("ST_CANCEL_127");
-        break;    
-      case ST_UNKNOWN:
-        printf("ST_UNKNOWN");
-        break;
-      default:
-        printf("ST NOT DEFINED");    
+        case ST_TRYING_100:
+            printf("ST_TRYING_100");
+            break;
+        case ST_RINGING_180:
+            printf("ST_RINGING_180");
+            break;
+        case ST_SESSION_PROGRESS_183:
+            printf("ST_SESSION_PROGRESS_183");
+            break;
+        case ST_OK_200:
+            printf("ST_OK_200");
+            break;
+        case ST_UNAUTHORIZED_401:
+            printf("ST_UNAUTHORIZED_401");
+            break;
+        case ST_PROXY_AUTH_REQ_407:
+            printf("ST_PROXY_AUTH_REQ_407");
+            break;
+        case ST_BUSY_HERE_486:
+            printf("ST_BUSY_HERE_486");
+            break;
+        case ST_REQUEST_CANCELLED_487:
+            printf("ST_REQUEST_CANCELLED_487");
+            break;
+        case ST_SERVER_ERROR_500:
+            printf("ST_SERVER_ERROR_500");
+            break;
+        case ST_DECLINE_603:
+            printf("ST_DECLINE_603");
+            break;
+        case ST_CANCEL_127:
+            printf("ST_CANCEL_127");
+            break;    
+        case ST_UNKNOWN:
+            printf("ST_UNKNOWN");
+            break;
+            
+        default:
+            printf("ST NOT DEFINED");    
     }
     CLTEXT
     printf("\n");
 
 }
 
+
 void printPhoneState(enum PhoneState status){
-   STATETEXT
+    STATETEXT
     printf("\nPhoneState:");
     switch (status) {
-      case PS_IDLE:
-        printf("PS_IDLE");
-        break;
-//      case PS_REGISTERED:
-//        printf("PS_REGISTERED");
-//        break;
-      case PS_RINGING:
-        printf("PS_RINGING");
-        break;
-      case PS_DIALLING:
-        printf("PS_DIALLING");
-        break;
-      case PS_ANSWER:
-        printf("PS_ANSWER");
-        break;
-      case PS_HANGUP:
-        printf("PS_HANGUP");
-        break;
-      case PS_DECLINED:
-        printf("PS_DECLINED");
-        break;
-      case PS_ESTABLISHED:
-        printf("PS_ESTABLISHED");
-        break;
-      default:
-        printf("NOT DEFINED");
+        case PS_IDLE:
+            printf("PS_IDLE");
+            break;
+        case PS_DIALLING:
+            printf("PS_DIALLING");
+            break;
+        case PS_NOT_REGISTERED:
+            printf("PS_NOT_REGISTERED");
+            break;
+        case PS_REGISTERED:
+            printf("PS_REGISTERED");
+            break;
+        case PS_RINGTONE:
+            printf("PS_RINGTONE");
+            break;
+        case PS_RINGING:
+            printf("PS_RINGING");
+            break;
+        case PS_IC_INCALL:
+            printf("PS_IG_INCALL");
+            break;
+        case PS_OG_INCALL:
+            printf("PS_OG_INCALL");
+            break;
+        case PS_DECLINED:
+            printf("PS_DECLINED");
+            break;
 
+        default:
+            printf("NOT DEFINED");
     }
     CLTEXT
     printf("\n");
@@ -241,52 +256,60 @@ void printPhoneState(enum PhoneState status){
 }
 
 void sip_init(){
-        printf("Sip Init\n");
+    printf("Sip Init\n");
 
-        sprintf(c_server_ip,"%s",server_addr[server] );
-        sprintf(c_uri, "sip:%s", c_server_ip);
-        sprintf(c_login, "%s", sip_login[server]);
-        sprintf(c_user, "%s", sip_username[server]);
-        sprintf(c_pwd,"%s",sip_password[server]);
+    sprintf(c_server_ip,"%s",server_addr[server] );
+    sprintf(c_uri, "sip:%s", c_server_ip);
+    sprintf(c_login, "%s", sip_login[server]);
+    sprintf(c_user, "%s", sip_username[server]);
+    sprintf(c_pwd,"%s",sip_password[server]);
+    sprintf(c_realm,"%s",server_realm[server]);
+    
+    sprintf(c_to_uri, "%s@%s",c_user,c_server_ip);
+    sprintf(c_my_ip,"%s",ip4addr_ntoa(netif_ip4_addr(netif_list)) );
 
-        sprintf(c_to_uri, "%s@%s",c_user,c_server_ip);
-        sprintf(c_my_ip,"%s",ip4addr_ntoa(netif_ip4_addr(netif_list)) );
+    sprintf(c_call_id,"%i%i",rand() % max32bit,rand() % max32bit);
+    sprintf(c_tag,"%i%i",rand() % max32bit,rand() % max32bit);
+    sprintf(c_cnonce,"%i",rand() % max32bit);
 
-        sprintf(c_call_id,"%i",rand() % 2147483647);
-        sprintf(c_tag,"%i",rand() % 2147483647);
-        sprintf(c_cnonce,"%i",rand() % 2147483647);
+    sprintf(c_to_tag,"");
 
-        nc++;
+    nc++;
 
-        sprintf(c_nc,"%08i",nc);        
+    sprintf(c_nc,"%08i",nc);
+    c_sip_sequence_number=rand() % max16bit;        
 
-        char buffer[500];        
+    sprintf(c_call,"");
+    
+    char buffer[500];        
 
-        sprintf(buffer,"\nSIP INIT\n");
-        sprintf(buffer,"%sServer:IP %s\n",buffer,c_server_ip);
-        sprintf(buffer,"%sLogin:%s\n",buffer,c_login);
-        sprintf(buffer,"%sUser:%s\n",buffer,c_user);
-        sprintf(buffer,"%sRealm:%s\n",buffer,c_realm);
+    sprintf(buffer,"\nSIP INIT\n");
+    sprintf(buffer,"%sServer:IP %s\n",buffer,c_server_ip);
+    sprintf(buffer,"%sLogin:%s\n",buffer,c_login);
+    sprintf(buffer,"%sUser:%s\n",buffer,c_user);
+    sprintf(buffer,"%sRealm:%s\n",buffer,c_realm);
 
-        sprintf(buffer,"%s\n\n",buffer);
-        printf("%s",buffer);
+    sprintf(buffer,"%s\n\n",buffer);
+    printf("%s",buffer);
 
-        sprintf(buffer,"%sPass:%s\n",buffer,c_pwd);
-        log_file_save("## Sip Setings:\n",buffer);                
+    sprintf(buffer,"%sPass:%s\n",buffer,c_pwd);
+    log_file_save("## Sip Setings:\n",buffer);                
+
 }
 
 
-void request_ring(const char* call_no, const char* caller_display){
+void request_dial(const char* call_no, const char* caller_display){
     if (registered){         
         printf("Request to call %s...\n", call_no);
-//        c_call_id = rand() % 2147483647;
-        sprintf(c_call_id,"%i",rand() % 2147483647);
+        sprintf(c_call_id,"%i%i",rand() % max32bit,rand() % max32bit);
         sprintf(c_call,"%s",call_no);          
         ph_state=PS_DIALLING;
+        //start call by sending UNAUTH INVITE
         cl_state = SS_INVITE_UNAUTH;
         tx();
              
         }else{
+             ph_state=ph_state=PS_NOT_REGISTERED;
              printf("Not registered\n");
         }  
     }
@@ -331,19 +354,21 @@ void request_ring(const char* call_no, const char* caller_display){
         case SS_REGISTER_UNAUTH:
             //sending REGISTER without auth
             printf("TX SS_REGISTER_UNAUTH\n");
-            printf(c_tag,"%i",rand() % 2147483647);
-            c_branch = rand() % 2147483647;
-            send_sip_register();
-            sprintf(c_tag,"%i",rand() % 2147483647);
-            c_branch = rand() % 2147483647;
+            printf(c_tag,"%i%i",rand() % max32bit,rand() % max32bit);
+            sprintf(c_branch,"%i%i",rand() % max32bit,rand() % max32bit);
+            send_sip_register(0);
+            sprintf(c_tag,"%i%i",rand() % max32bit,rand() % max32bit);
+            sprintf(c_branch,"%i%i",rand() % max32bit,rand() % max32bit);
             break;
         case SS_REGISTER_AUTH:
             printf("TX SS_REGISTER_AUTH\n");
             //sending REGISTER with auth
             //must be the same as uri in Response
-            sprintf(temp,"sip:%s:%i", c_my_ip,sip_local_port);
-            compute_auth_response("REGISTER", temp);
-            send_sip_register();
+            // use relm rather than ip
+//            sprintf(temp,"sip:%s:%i", c_my_ip,sip_local_port);
+//            sprintf(temp,"sip:%s:%i", c_realm,sip_server_port);
+//            compute_auth_response("REGISTER", temp);
+            send_sip_register(1);
             break;
         case SS_REGISTERED:
             printf("TX SS_REGISTERED\n");
@@ -358,46 +383,51 @@ void request_ring(const char* call_no, const char* caller_display){
         case SS_INVITE_UNAUTH:
             printf("TX SS_INVITE_UNAUTH\n");
             //sending INVITE without auth
-            //c_tag = rand() % 2147483647;
+            //c_tag = rand() % max32bit;
             sprintf(c_nonce,"");
-            sprintf(c_realm,"");
+//            sprintf(c_realm,"");
             sprintf(c_response,"");
 
             c_response[0]=0; // ensure no pre vious responce is used
             sprintf(c_response,"");
             c_sdp_session_id = rand();
-            send_sip_invite();
+            send_sip_invite(0,0);
             break;
-        case SS_INVITE_UNAUTH_SENT:
-            printf("TX SS_INVITE_UNAUTH_SENT\n");
-            break;
+//        case SS_INVITE_UNAUTH_SENT:
+//            printf("TX SS_INVITE_UNAUTH_SENT\n");
+//            break;
         case SS_INVITE_AUTH:
             printf("TX SS_INVITE_AUTH\n");
             //sending INVITE with auth
-            c_branch = rand() % 2147483647;
-            char uri[100];
-            sprintf(uri,"sip:%s@%s",c_call,c_server_ip); 
-            compute_auth_response("INVITE", uri);
-            send_sip_invite();
+            sprintf(c_branch,"%i%i",rand() % max32bit,rand() % max32bit);
+//            char uri[100];
+            send_sip_invite(1,0);
+            break;
+        case SS_INVITE_PAUTH:
+            printf("TX SS_INVITE_PAUTH\n");
+            //sending INVITE with auth
+            sprintf(c_branch,"%i%i",rand() % max32bit,rand() % max32bit);
+//            char uri[100];
+            send_sip_invite(1,1);
             break;
         case SS_RINGING:
             printf("TX SS_RINGING\n");
             // RTP ssrc generation
-            ssrc = rand() % 2147483647;
+            ssrc = rand() % max32bit;
             if (p_method==MD_CANCEL){
                 send_sip_ok(0);
-//                sleep_ms(100);
                 send_request_terminated();
 //                ph_state=PS_REGISTERED;
                 cl_state=SS_IDLE;              
             }
-            if (ph_state==PS_DECLINED){
+/*            if (ph_state==PS_DECLINED){
                 printf("Sending cancel from DECLINE request\n");
                 send_sip_cancel();
                 ph_state=PS_IDLE;
                 cl_state=SS_IDLE;
                 enablertp=0;
             }
+*/
             break;
         case SS_CALL_START:
             printf("TX CALL_START\n");
@@ -417,8 +447,8 @@ void request_ring(const char* call_no, const char* caller_display){
         case SS_CANCELLED:
             printf("TX SS_CANCELED\n");
             send_sip_ack();
-            printf(c_tag,"%i",rand() % 2147483647);
-            c_branch = rand() % 2147483647;
+            printf(c_tag,"%i%i",rand() % max32bit,rand() % max32bit);
+            sprintf(c_branch,"%i%i",rand() % max32bit,rand() % max32bit);
             break;
         case SS_ERROR:
             printf("TX SS_ERROR %i\n",cl_state);
@@ -427,7 +457,7 @@ void request_ring(const char* call_no, const char* caller_display){
         CLTEXT
     }
 
-    void rx()
+    void rx(int b)
     {
         RXTEXT
     
@@ -441,13 +471,12 @@ void request_ring(const char* call_no, const char* caller_display){
    //             cl_state = SS_INVITE_UNAUTH;
         } else if (cl_state == SS_ERROR) {
             printf("RX SS_ERROR\n");
-//            sleep_ms(100);
             c_sip_sequence_number++;
             cl_state = SS_IDLE;
             return;
         } else if (cl_state == SS_INVITE_UNAUTH) {
             printf("RX INVITE_UNAUTH\n");
-            cl_state = SS_INVITE_UNAUTH_SENT;
+//            cl_state = SS_INVITE_UNAUTH_SENT;
         } else if (cl_state == SS_CALL_START) {
             printf("RX CALL_START\n");
 //            cl_state = SS_CALL_IN_PROGRESS;
@@ -455,10 +484,12 @@ void request_ring(const char* call_no, const char* caller_display){
         } 
         
         // Parce received packet
-        if (!parse()) {
+        if (!parse(b)) {
             printf("!!!!!!!!!!!!!!!!! Parsing the packet failed !!!!!!!!!!!!!!!!!!!!!!!!!!!");
             return;
         }
+        
+        parsed_headers();
         
         printf("After Parse\n");        
         printRStatus(p_status);
@@ -476,7 +507,7 @@ void request_ring(const char* call_no, const char* caller_display){
             return;
         } else if ((reply == ST_UNAUTHORIZED_401) || (reply == ST_PROXY_AUTH_REQ_407)) {
             printf("RX UNAUTHORIZED_401 PROXY_AUTH_REQ_407\n");
-            sprintf(c_realm,"%s",p_realm );
+            //sprintf(c_realm,"%s",p_realm );
             strncat(c_nonce,p_nonce,PARSE_MAX);
         } else if ((reply == ST_RINGING_180)){
             cl_state=SS_RINGTONE;
@@ -506,6 +537,7 @@ void request_ring(const char* call_no, const char* caller_display){
                 
                 send_sip_ringing();
                 cl_state=SS_RINGING;
+                ph_state=PS_RINGING;
             }
             
             if ((p_method == MD_BYE)) {
@@ -532,7 +564,14 @@ void request_ring(const char* call_no, const char* caller_display){
 //                ph_state=PS_IDLE;
                 enablertp=0;
              }
-   
+             if ((p_method == MD_NOTIFY)) {
+                printf("RX NOTIFY\n");
+                 send_sip_ok(0);
+//                cl_state=SS_IDLE;
+//                ph_state=PS_IDLE;
+//                enablertp=0;
+             }
+ 
             
         }
 /*
@@ -549,6 +588,7 @@ void request_ring(const char* call_no, const char* caller_display){
         }
 
         if (p_to_tag[0]) {
+            printf("p_to_tag:%s:\n",p_to_tag);
             sprintf(c_to_tag,"%s",p_to_tag);
         }
 
@@ -569,12 +609,12 @@ void request_ring(const char* call_no, const char* caller_display){
                 printf("RX ST_OK_200 )\n");
                 c_sip_sequence_number++;
                 sprintf(c_nonce,"");
-                sprintf(c_realm,"");
+//                sprintf(c_realm,"");
                 sprintf(c_response,"");
                 printf( "REGISTER - OK :)");
                 
                 cl_state = SS_REGISTERED;
-//                ph_state = PS_REGISTERED;
+                ph_state = PS_REGISTERED;
                 registered=1;
             } else {
                 cl_state = SS_ERROR;
@@ -597,39 +637,48 @@ void request_ring(const char* call_no, const char* caller_display){
 //                  
 //              }
 //            }
+              printf("   SHOULDN'T GET HERE????\n");
             break;
-        case SS_INVITE_UNAUTH_SENT:
-            printf("RX SS_INVITE_UNAUTH SENT\n");
-//            c_sip_sequence_number++;
-            send_sip_ack();
+//        case SS_INVITE_UNAUTH_SENT:   //do we need this ?
+//            printf("RX SS_INVITE_UNAUTH SENT\n");
+//            send_sip_ack();
         case SS_INVITE_UNAUTH:
             printf("RX SS_INVITE_UNAUTH - reply %i\n",reply);
             if ((reply == ST_UNAUTHORIZED_401) || (reply == ST_PROXY_AUTH_REQ_407)) {
                 printf("RX ST_UNAUTHORIZED_401 / ST_PROXY_AUTH_REQ_407 \n");
-                cl_state = SS_INVITE_AUTH;
+                send_sip_ack();
+                if (reply == ST_UNAUTHORIZED_401){
+                    cl_state = SS_INVITE_AUTH;
+                }else{
+                    cl_state = SS_INVITE_PAUTH;
+                }
                 c_sip_sequence_number++;
             } else if ((reply == ST_OK_200) || (reply == ST_SESSION_PROGRESS_183)) {
                 printf("ST_OK_200 / ST_SESSION_PROGRESS_183\n");
                 cl_state = SS_RINGING;
+                ph_state = PS_RINGING;
                 sprintf(c_nonce,"");
-                sprintf(c_realm,"");
+//                sprintf(c_realm,"");
                 sprintf(c_response,"");
                 printf( "Start RINGing...");
             } else if (reply != ST_TRYING_100) {
                 cl_state = SS_ERROR;
             }
             break;
+        case SS_INVITE_PAUTH:
+          //fallthrough    
         case SS_INVITE_AUTH:
             printf("RX SS_INVITE_AUTH - reply %i\n",reply);
             if ((reply == ST_UNAUTHORIZED_401) || (reply == ST_PROXY_AUTH_REQ_407)) {
                 printf("ST_UNAUTHORIZED_401 / ST_PROXY_AUTH_REQ_407\n");
+                send_sip_ack();
                 cl_state = SS_ERROR;
             } else if ((reply == ST_OK_200) || (reply == ST_SESSION_PROGRESS_183) || (reply == ST_TRYING_100)) {
                 printf("ST_OK_200 / ST_SESSION_PROGRESS_183 / reply == ST_TRYING_100\n");
                 //trying is not yet ringing, but change state to not send invite again
-                cl_state = SS_RINGING;
+                cl_state = SS_RINGTONE; //was SS_RINGING
                 sprintf(c_nonce,"");
-                sprintf(c_realm,"");
+//                sprintf(c_realm,"");
                 sprintf(c_response,"");
                 printf( "Start RINGing...");
             } else {
@@ -642,7 +691,7 @@ void request_ring(const char* call_no, const char* caller_display){
                 //other side picked up, send an ack
                 send_sip_ack();
                 cl_state = SS_CALL_IN_PROGRESS_IH;
-                ph_state = PS_ESTABLISHED;
+                ph_state = PS_OG_INCALL;
                 
                 printf("###RDP 1 ### set RDP %s:%s\n",p_cip,p_mport);
                 rdp_og_port=atoi(p_mport);
@@ -668,7 +717,7 @@ void request_ring(const char* call_no, const char* caller_display){
                  
                               
                 cl_state = SS_CALL_START;
-                ph_state=PS_ESTABLISHED;
+                ph_state=PS_IC_INCALL;
             } else if (reply == ST_REQUEST_CANCELLED_487) {
                 cl_state = SS_CANCELLED;
                  printf("SS_CANCELLED\n");
@@ -683,7 +732,7 @@ void request_ring(const char* call_no, const char* caller_display){
                 printf("ST_DECLINE_603 ST_BUSY_HERE_486\n");
                 send_sip_ack();
                 c_sip_sequence_number++;
-                c_branch = rand() % 2147483647;
+                sprintf(c_branch,"%i%i",rand() % max32bit,rand() % max32bit);
                 cl_state = SS_IDLE;
                 enum CancelReason cancel_reason = CR_CALL_DECLINED;
                 if (reply == ST_BUSY_HERE_486) {
@@ -727,9 +776,6 @@ void request_ring(const char* call_no, const char* caller_display){
             break;
         }
 
-        if (old_state != cl_state) {
-            //log_state_transition(old_state, cl_state);
-        }
         CLTEXT
     }
 
@@ -739,38 +785,53 @@ void request_ring(const char* call_no, const char* caller_display){
        send_sip_ok(1);
        enablertp=1;
        cl_state=SS_CALL_IN_PROGRESS_IT;
-       ph_state=PS_ESTABLISHED;
+       ph_state=PS_IC_INCALL;
     }
 
-    void send_sip_register()
-    {
+    void send_sip_register(int auth){
+//        printf("\nSend Register REALM %s\n",c_realm);
+        printf("\nSend Register /n");
+    
+        char request_uri[100];
+        //regsiter with realm
+        sprintf(request_uri,"sip:%s", c_realm);        
+        //regsiter with IP
+//        sprintf(request_uri,"sip:%s", c_server_ip);        
+
+        if (auth){
+            compute_auth_response("REGISTER", request_uri);
+        }
         printf("Send SIP Register\n");
         char buffer[2048];
         
-        char request_uri[100];
-        sprintf(request_uri,"sip:%s:%i", c_my_ip,sip_local_port);
+        //sprintf(request_uri,"sip:%s", c_realm);
         
         char to_uri[100];
-        sprintf(to_uri,"%s@%s",c_login,c_my_ip);
-        
-        char from_uri[100];
-        sprintf(from_uri,"%s@%s",c_login,c_my_ip);              
+        sprintf(to_uri,"%s@%s",c_login,c_realm);
+//        sprintf(to_uri,"%s@%s",c_login,c_my_ip);
 
+        char from_uri[100];
+        sprintf(from_uri,"%s@%s",c_login,c_realm);
+//        sprintf(from_uri,"%s@%s",c_login,c_my_ip);
+
+        sprintf(c_to_tag,""); //remove to tag ?
+        
         sip_header("REGISTER", request_uri, from_uri, to_uri, c_tag, c_to_tag, buffer);
-        sprintf(buffer,"%sContact: <sip:%s@%s:%i;%s>\r\n",buffer,c_login,c_my_ip,sip_local_port,TRANSPORT_LOWER  );
+//        sprintf(buffer,"%sContact: <sip:%s@%s:%i;%s>\r\n",buffer,c_login,c_my_ip,sip_local_port,TRANSPORT_LOWER  );
+        sprintf(buffer,"%sContact: <sip:%s@%s:%i;ob>\r\n",buffer,c_login,c_my_ip,sip_local_port  );
 
         if (c_response[0]) {
             sprintf(buffer,"%sAuthorization: Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", algorithm=MD5, response=\"%s\", qop=%s, opaque=\"%s\", cnonce=\"%s\", nc=%s\r\n",
                buffer, c_user ,c_realm ,c_nonce, request_uri ,c_response,p_qop,p_opaque,c_cnonce,c_nc );            
         }
-        sprintf(buffer,"%sAllow: INVITE, ACK, CANCEL, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, REGISTER\r\n",buffer);
-        sprintf(buffer,"%sExpires: 600\r\n",buffer);
+//        sprintf(buffer,"%sAllow: INVITE, ACK, CANCEL, BYE, REFER, MESSAGE, INFO, REGISTER,\r\n",buffer); 
+        sprintf(buffer,"%sAllow: PRACK, INVITE, ACK, CANCEL, BYE, REFER, UPDATE, MESSAGE, INFO, SUBSCRIBE, NOTIFY, OPTIONS\r\n",buffer);
+        sprintf(buffer,"%sExpires: 300\r\n",buffer);
         sprintf(buffer,"%sContent-Length: 0\r\n",buffer);
         sprintf(buffer,"%s\r\n",buffer);
 
-        //printf("\n\nSIP Register - Send UDP \n%s\nLEN %i\n",buffer,strlen(buffer));
-        printf("SIP Register \n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        printf("\nSIP Register \n");
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
     
     void send_sip_busy(){
@@ -778,10 +839,11 @@ void request_ring(const char* call_no, const char* caller_display){
         char buffer[2048];
         sprintf(buffer,"");
         sip_reply_header("486 Busy Here"  ,  buffer);
-        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REFER, SUBSCRIBE, NOTIFY\n\r",buffer);
+//        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REFER, SUBSCRIBE, NOTIFY\n\r",buffer);
+        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REFER\n\r",buffer);
         sprintf(buffer,"%sContent-Length: 0\r\n",buffer);
         sprintf(buffer,"%s\r\n",buffer);
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
     
     void send_sip_options(){
@@ -789,13 +851,14 @@ void request_ring(const char* call_no, const char* caller_display){
         char buffer[2048];
         sprintf(buffer,"");
         sip_reply_header("200 OK"  ,  buffer);
-        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REFER, SUBSCRIBE, NOTIFY\n\r",buffer);
+//        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REFER, SUBSCRIBE, NOTIFY\n\r",buffer);
+        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REFER\n\r",buffer);
         sprintf(buffer,"%sContent-Length: 0\r\n",buffer);
         sprintf(buffer,"%s\r\n",buffer);
 
         //printf("%s\n",buffer);
         printf("SIP Options \n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
 
     void populate_sdp(char * sdp_buffer){    
@@ -813,29 +876,47 @@ void request_ring(const char* call_no, const char* caller_display){
         sprintf(sdp_buffer,"%sa=fmtp:101 0-15\r\n",sdp_buffer);
     }
 
-    void send_sip_invite()
+    void send_sip_invite(int auth,int proxy) //remove if the one below works
     {
-        printf("Send SIP Invite\n");
+        printf("Send SIP Invite - auth:%i\n",auth);
         char buffer[2048];
         char sdp_buffer[1024];
-        char from_uri[100];
+        
         char to_uri[100];
-
-        sprintf(to_uri,"%s@%s",c_call,c_server_ip);         
-        sprintf(from_uri,"%s@%s",c_login,c_server_ip); 
-        
+        char from_uri[100];
         char request_uri[100];
-        sprintf(request_uri,"sip:%s",to_uri);
         
+        if(regwithrealm[server]){
+            printf("  reg with realm\n");
+            sprintf(to_uri,"%s@%s",c_call,c_realm); //realm
+            sprintf(from_uri,"%s@%s",c_login,c_realm); //realm
+            sprintf(request_uri,"sip:%s",to_uri); //realm
+        }else{    
+            printf("Reg with ip\n");
+            sprintf(to_uri,"%s@%s",c_call,c_server_ip);//ip
+            sprintf(from_uri,"%s@%s",c_login,c_server_ip);//ip
+            sprintf(request_uri,"sip:%s@%s",c_call,c_server_ip); //ip
+        }
+        
+        if (auth){
+            compute_auth_response("INVITE", request_uri);
+        }
+    
         sip_header("INVITE", request_uri, from_uri ,to_uri , c_tag, "", buffer);
-        sprintf(buffer,"%sContact: \"%s\" <sip:%s@%s:%i>\r\n",buffer,c_user,c_login,c_my_ip,sip_local_port );
+        sprintf(buffer,"%sContact: <sip:%s@%s:%i>\r\n",buffer,c_login,c_my_ip,sip_local_port );
         
         if (c_response[0]) {
+            if (proxy){
+              sprintf(buffer,"%sProxy-Authorization: Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"sip:%s\", algorithm=MD5, response=\"%s\", qop=%s, opaque=\"%s\", cnonce=\"%s\", nc=%s\r\n"
+                  ,buffer, c_user ,c_realm ,c_nonce,to_uri ,c_response,p_qop,p_opaque,c_cnonce,c_nc );            
+            }else{
               sprintf(buffer,"%sAuthorization: Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"sip:%s\", algorithm=MD5, response=\"%s\", qop=%s, opaque=\"%s\", cnonce=\"%s\", nc=%s\r\n"
                   ,buffer, c_user ,c_realm ,c_nonce,to_uri ,c_response,p_qop,p_opaque,c_cnonce,c_nc );
+            }
         }
         sprintf(buffer,"%sContent-Type: application/sdp\r\n",buffer);
-        sprintf(buffer,"%sAllow: INVITE, ACK, CANCEL, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, REGISTER\r\n",buffer);
+        sprintf(buffer,"%sAllow: INVITE, ACK, CANCEL, BYE, REFER, MESSAGE, INFO, REGISTER\r\n",buffer);
+//        sprintf(buffer,"%sAllow: INVITE, ACK, CANCEL, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, REGISTER\r\n",buffer);
         
         populate_sdp(sdp_buffer);
 
@@ -843,9 +924,9 @@ void request_ring(const char* call_no, const char* caller_display){
         sprintf(buffer,"%s\r\n%s",buffer,sdp_buffer);
         printf("SIP Invite\n");
         
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
-    
+        
     
 
     /**
@@ -873,7 +954,7 @@ void request_ring(const char* call_no, const char* caller_display){
 
         printf("%s\n",buffer);
         printf("SIP Cancel\n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
 
 
@@ -885,7 +966,7 @@ void request_ring(const char* call_no, const char* caller_display){
         c_sip_sequence_number++;
 
         char request_uri[100];
-        sprintf(request_uri,"sip:%s@%s:%i",c_login,c_server_ip,sip_local_port);
+        sprintf(request_uri,"sip:%s@%s:%i",c_login,c_server_ip,sip_server_port);
 
         sprintf(buffer,"BYE %s SIP/2.0\r\n",request_uri);
 
@@ -897,13 +978,13 @@ void request_ring(const char* call_no, const char* caller_display){
         sprintf(buffer,"%sTo: %s\r\n",buffer,p_from);
         sprintf(buffer,"%sFrom: %s\r\n",buffer,p_to);
 
-        sprintf(buffer,"%sVia: SIP/2.0/%s %s:%i;branch=z9hG4bK-%i\r\n",buffer,TRANSPORT_UPPER,c_my_ip ,sip_local_port,c_branch);
+        sprintf(buffer,"%sVia: SIP/2.0/%s %s:%i;branch=z9hG4bK%s\r\n",buffer,TRANSPORT_UPPER,c_my_ip ,sip_local_port,c_branch);
 
         sprintf(buffer,"%sContent-Length: 0\r\n",buffer);
         sprintf(buffer,"%s\r\n",buffer);
         printf("%s\n",buffer);
 
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
 
 
@@ -933,7 +1014,7 @@ void request_ring(const char* call_no, const char* caller_display){
         sprintf(buffer,"%s\r\n",buffer);
         printf("%s\n",buffer);
         printf("SIP Bye \n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
 
     void send_sip_ack()
@@ -961,14 +1042,14 @@ void request_ring(const char* call_no, const char* caller_display){
             printf("ACK NOT Call Start\n");
             sprintf(to_uri,"%s@%s",c_call,c_server_ip);
             sprintf(from_uri,"%s@%s",c_login,c_server_ip);
-            sprintf(request,"sip:%s@%s:%i",c_call,c_server_ip,sip_local_port);
+            sprintf(request,"sip:%s@%s:%i",c_call,c_server_ip,sip_local_port); // should this be server port ???
             sip_header("ACK", request, from_uri,to_uri,c_tag, c_to_tag, buffer);
             sprintf(buffer,"%sContent-Length: 0\r\n",buffer);
             sprintf(buffer,"%s\r\n",buffer);
         }
         //printf("%s\n",buffer);
         printf("SIP ACK\n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
     }
 
     void send_sip_ok(int withsdp){
@@ -979,7 +1060,8 @@ void request_ring(const char* call_no, const char* caller_display){
         sip_reply_header("200 OK"  ,  buffer);
 //        sprintf(buffer,"%sUser-Agent: %s\r\n",buffer,USER_AGENT);
         sprintf(buffer,"%sContact: <sip:%s@%s:%i>\r\n",buffer,c_login,c_my_ip,sip_local_port);
-        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REGISTER, SUBSCRIBE, NOTIFY\r\n",buffer);
+        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REGISTER\r\n",buffer);
+//        sprintf(buffer,"%sAllow: INVITE, OPTIONS, INFO, BYE, CANCEL, ACK, UPDATE, REGISTER, SUBSCRIBE, NOTIFY\r\n",buffer);
         if(withsdp){
             printf("  With SDP\n");
             populate_sdp(sdp_buffer);
@@ -993,7 +1075,7 @@ void request_ring(const char* call_no, const char* caller_display){
         //printf("%s\n",buffer);
 //        printf("SIP OK\n");
 //        log_file_save("## SIP OK:\n",buffer);
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
         
     }
 
@@ -1008,7 +1090,7 @@ void request_ring(const char* call_no, const char* caller_display){
         
         //printf("%s\n",buffer);
         printf("SIP Request Terminated\n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
         
     }
 
@@ -1016,24 +1098,25 @@ void request_ring(const char* call_no, const char* caller_display){
     {
         printf("Send Sip Ringing\n");
         //add tag to TO
-        int tag=rand() % 2147483647;
+        int tag=rand() % max32bit;
         sprintf(p_to,"%s;tag=%i",p_to,tag);
 
         char buffer[2048];
         sip_reply_header("180 Ringing"  ,  buffer);
         sprintf(buffer,"%sContact: \"%s\" <sip:%s@%s:%i>\r\n",buffer,c_user,c_login ,c_my_ip,sip_local_port);
-        sprintf(buffer,"%sAllow: INVITE, ACK, BYE, OPTIONS, NOTIFY, REGISTER, CANCEL\r\n",buffer);
+        sprintf(buffer,"%sAllow: INVITE, ACK, BYE, OPTIONS,  REGISTER, CANCEL\r\n",buffer);
         sprintf(buffer,"%sContent-Length: 0\r\n",buffer);
         sprintf(buffer,"%s\r\n",buffer);
                 
 //        printf("SIP Ringing\n");
-        send_sip_udp_blocking(buffer,strlen(buffer)-1,0);
+        send_sip_udp_blocking(buffer,strlen(buffer),debug);
         
     }
 
     void sip_header(const char * command, const char * request_uri, char * from_uri, char * to_uri, char * from_tag, char * to_tag, char * buffer)
     {
         printf("sip_header CMD:%s\n",command);
+//        sprintf(buffer,"%s sip:%s SIP/2.0\r\n",command,c_realm);  
         sprintf(buffer,"%s %s SIP/2.0\r\n",command,request_uri);  
 
         sprintf(buffer,"%sCSeq: %i %s \r\n",buffer,c_sip_sequence_number,command );
@@ -1045,9 +1128,9 @@ void request_ring(const char* call_no, const char* caller_display){
         if (strcmp(command,"INVITE")==0) {
             printf("Header INVITE");
              if(from_tag[0]){
-                sprintf(buffer,"%sFrom: \"%s\" <sip:%s>;tag=%s\r\n",buffer,c_user,from_uri,from_tag);
+                sprintf(buffer,"%sFrom: <sip:%s>;tag=%s\r\n",buffer,from_uri,from_tag);
              }else{
-                sprintf(buffer,"%sFrom: \"%s\" <sip:%s>\r\n",buffer,c_user,from_uri);
+                sprintf(buffer,"%sFrom: <sip:%s>\r\n",buffer,from_uri);
              }   
         } else if (strcmp(command,"REGISTER")==0) {
             printf("Header REGISTER\n");
@@ -1058,25 +1141,26 @@ void request_ring(const char* call_no, const char* caller_display){
               }    
         } else {
             printf("Header not REGISTER or INVITE\n");
-            if(from_tag){
+            if(from_tag[0]){
                 sprintf(buffer,"%sFrom: <sip:%s>;tag=%s\r\n",buffer,from_uri,from_tag);
             }else{
                 sprintf(buffer,"%sFrom: <sip:%s>\r\n",buffer,from_uri);
             }
             
         }
-        sprintf(buffer,"%sVia: SIP/2.0/%s %s:%i;branch=z9hG4bK-%i\r\n",buffer,TRANSPORT_UPPER,c_my_ip ,sip_local_port,c_branch);
+//        sprintf(buffer,"%sVia: SIP/2.0/%s %s:%i;branch=z9hG4bK%s\r\n",buffer,TRANSPORT_UPPER,c_my_ip ,sip_local_port,c_branch);
+        sprintf(buffer,"%sVia: SIP/2.0/%s %s:%i;rport;branch=z9hG4bK%s\r\n",buffer,TRANSPORT_UPPER,c_my_ip ,sip_local_port,c_branch);
 
         if ((strcmp(command,"ACK")!=0) && (c_to_tag[0])) {
             printf("notACK\n");
-            if(to_tag[0]>0){ 
+            if(to_tag[0]){ 
                 sprintf(buffer,"%sTo: <sip:%s>;tag=%s\r\n",buffer,to_uri,to_tag);   
             }else{
                 sprintf(buffer,"%sTo: <sip:%s>\r\n",buffer,to_uri);
             }
         } else {
             printf("ACK\n");
-            if(to_tag>0){
+            if(to_tag[0]){
                 sprintf(buffer,"%sTo: <sip:%s>;tag=%s\r\n",buffer,to_uri,to_tag);
             }else{
                 sprintf(buffer,"%sTo: <sip:%s>\r\n",buffer,to_uri);
@@ -1129,6 +1213,7 @@ void request_ring(const char* call_no, const char* caller_display){
         
         //HA1 from user realm password
         sprintf(data,"%s:%s:%s",c_user,c_realm,c_pwd);
+
         
         MD5Init (&mdContext);
         MD5Update (&mdContext,data,strlen(data));

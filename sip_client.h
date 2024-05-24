@@ -1,4 +1,3 @@
-
 #include "stdbool.h"
 #include "enums.h"
 
@@ -29,7 +28,7 @@ char c_nc[100];
 char c_tag[100];
 
 //branch and session
-uint32_t c_branch;
+char c_branch[100];
 uint32_t c_sdp_session_id;
 
 //rtp
@@ -37,12 +36,12 @@ char rtp_ip[100];
 char rtp_port[100];
 
 
-void request_ring(const char* local_number, const char* caller_display);
+void request_dial(const char* local_number, const char* caller_display);
 void request_cancel();
 void tx();
 void rx();
-void send_sip_register();
-void send_sip_invite();
+void send_sip_register(int);
+void send_sip_invite(int,int);
 void send_sip_cancel();
 void send_sip_bye();
 void send_sip_bye_it();
@@ -68,5 +67,6 @@ void sip_init();
 
 void printPhoneState(enum PhoneState status);
 void printMDState(enum Method state);
+void parsed_headers(void);
  
   

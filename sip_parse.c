@@ -14,15 +14,25 @@ static const size_t LINE_ENDING_LEN = 2;
 #define SIP_2_0_SPACE "SIP/2.0 "
 #define WWW_AUTHENTICATE "WWW-Authenticate"
 #define PROXY_AUTHENTICATE "Proxy-Authenticate"
+
 #define CONTACT "Contact: <"
 #define TO "To: "
 #define FROM "From: "
 #define VIA "Via: "
+#define CONTENT_LENGTH "Content-Length: "
+#define CALL_ID "Call-ID: "
+
+#define sCONTACT "m:<"
+#define sTO "t:"
+#define sFROM "f:"
+#define sVIA "v:"
+#define sCONTENT_LENGTH "l:"
+#define sCALL_ID "i:"
+
 #define RPORT "rport;"
 #define C_SEQ "CSeq: "
-#define CALL_ID "Call-ID: "
+#define sC_SEQ "CSeq:"
 #define CONTENT_TYPE "Content-Type: "
-#define CONTENT_LENGTH "Content-Length: "
 #define REALM "realm"
 #define NONCE "nonce"
 #define NOTIFY "NOTIFY "
@@ -44,6 +54,8 @@ static const size_t LINE_ENDING_LEN = 2;
 
 // set debug level    
 #define PARSEDEBUG 0
+
+extern uint8_t s_buffer[9][2048]; //defined in voip
 
 char* replaceWord(const char* s, const char* oldW,const char* newW){ 
     char* result; 
@@ -98,21 +110,21 @@ void stringptr(char * out, char * in,char * end){
    out[c]=0;  
 }
 
-bool parse(){
+bool parse(int b){
     printf("Parse\n");
-    bool result = parse_header();
+    bool result = parse_header(b);
     if (!result)
     {
         return false;
     }
-    parse_body();
+    parse_body(b);
     return true;
 }
 
-bool parse_header(){
+bool parse_header(int b){
     if (PARSEDEBUG>0) printf("Parse Header \n");
-    const char* start_position = s_buffer;
-    const char* buff_beginning = s_buffer;
+    const char* start_position = s_buffer[b];
+    const char* buff_beginning = s_buffer[b];
     char* end_position = strstr(start_position,LINE_ENDING);
 
     // parse init
@@ -134,7 +146,7 @@ bool parse_header(){
     
 
     if (end_position == nullptr){
-        if (PARSEDEBUG>1) printf( "No line ending found in %s\n", s_buffer);
+        if (PARSEDEBUG>1) printf( "No line ending found in %s\n", s_buffer[b]);
         return false;
     }
 
@@ -201,6 +213,18 @@ bool parse_header(){
                 stringptr(p_contact,start_position + strlen(CONTACT), last_pos);
             }
         }
+        else if (strncmp(sCONTACT, start_position, strlen(sCONTACT)) == 0){
+            if (PARSEDEBUG>2)printf( "Detect s contact line\n");
+            const char* last_pos = strstr(start_position, ">");
+            if (last_pos == nullptr)
+            {
+                if (PARSEDEBUG>1)printf( "Failed to read s content of contact line\n");
+            }
+            else
+            {
+                stringptr(p_contact,start_position + strlen(sCONTACT), last_pos);
+            }
+        }
         else if (strncmp(TO, start_position, strlen(TO)) == 0){
             if (PARSEDEBUG>2)printf( "Detect to line\n");
             const char* tag_pos = strstr(start_position, ">;tag=");
@@ -209,8 +233,19 @@ bool parse_header(){
             }
             string(p_to,start_position + strlen(TO),PARSE_MAX);
         }
+        else if (strncmp(sTO, start_position, strlen(sTO)) == 0){
+            if (PARSEDEBUG>2)printf( "Detect to line\n");
+            const char* tag_pos = strstr(start_position, ">;tag=");
+            if (tag_pos != nullptr){
+                string(p_to_tag,tag_pos + strlen(">;tag="),PARSE_MAX);
+            }
+            string(p_to,start_position + strlen(sTO),PARSE_MAX);
+        }
         else if (strstr(start_position, FROM) == start_position){
             string(p_from,start_position + strlen(FROM),PARSE_MAX);
+        }
+        else if (strstr(start_position, sFROM) == start_position){
+            string(p_from,start_position + strlen(sFROM),PARSE_MAX);
         }
         else if (strstr(start_position, VIA) == start_position){
             string(p_via,start_position + strlen(VIA),PARSE_MAX);
@@ -222,8 +257,24 @@ bool parse_header(){
                free(result);
             }
         }
+        else if (strstr(start_position, sVIA) == start_position){
+            string(p_via,start_position + strlen(sVIA),PARSE_MAX);
+            if (strstr(p_via, RPORT)!= NULL){
+               char* result = NULL;
+               result = replaceWord(p_via, RPORT, "rport=5060;");           // BODGE should use local sip port if not 5060
+//               sprintf(p_via,"%s",result);
+               string(p_via,result,PARSE_MAX);
+               free(result);
+            }
+        }
         else if (strstr(start_position, C_SEQ) == start_position){
             string(p_cseq,start_position + strlen(C_SEQ),PARSE_MAX);
+        }
+        else if (strstr(start_position, sC_SEQ) == start_position){
+            string(p_cseq,start_position + strlen(sC_SEQ),PARSE_MAX);
+        }
+        else if (strstr(start_position, sCALL_ID) == start_position){
+            string(p_call_id ,start_position + strlen(sCALL_ID),PARSE_MAX);
         }
         else if (strstr(start_position, CALL_ID) == start_position){
             string(p_call_id ,start_position + strlen(CALL_ID),PARSE_MAX);
@@ -235,6 +286,15 @@ bool parse_header(){
             long length = strtol(start_position + strlen(CONTENT_LENGTH), nullptr, 10);
             if (length < 0){
                 if (PARSEDEBUG>1)printf( "Invalid content length %ld\n", length);
+            }
+            else{
+                p_content_length = length;
+            }
+        }
+        else if (strstr(start_position, sCONTENT_LENGTH) == start_position){
+            long length = strtol(start_position + strlen(sCONTENT_LENGTH), nullptr, 10);
+            if (length < 0){
+                if (PARSEDEBUG>1)printf( "Invalid s content length %ld\n", length);
             }
             else{
                 p_content_length = length;
@@ -254,7 +314,7 @@ bool parse_header(){
     return false;
 }
 
-bool parse_body(){
+bool parse_body(int b){
     if (p_body == nullptr){
         if (PARSEDEBUG>2)printf("NO BODY HERE???\n");
         return true;
@@ -347,9 +407,11 @@ bool read_param_parse(const char* line, const char* param_name, char* output){
 }
 
 enum Status convert_status(uint32_t code){
+    printf("RX code %i\n",code);
     switch (code){
         case 200: return ST_OK_200;
         case 401: return ST_UNAUTHORIZED_401;
+        case 403: return ST_FORBIDDEN_403;
         case 100: return ST_TRYING_100;
         case 180: return ST_RINGING_180;
         case 127: return ST_CANCEL_127;
@@ -394,4 +456,27 @@ enum ContentType convert_content_type(const char* input)
         return CT_APPLICATION_DTMF_RELAY;
     }
     return CT_UNKNOWN;
+}
+
+void parsed_headers(void){
+    printf("\nParsed vars\n");
+    printf("realm:\n",p_realm);
+   
+    printf("nonce:%s\n",p_nonce);
+    printf("media:%s\n",p_media);
+    printf("contact:%s\n",p_contact);
+    printf("to_tag:%s\n",p_to_tag);
+//    printf("content_type:%s\n",p_content_type);
+    printf("to:%s\n",p_to);
+    printf("from:%s\n",p_from);
+    printf("call_id:%s\n",p_call_id);
+    printf("cseq::%s\n",p_cseq);
+    printf("via:%s\n",p_via);
+    printf("qop:%s\n",p_qop);
+    printf("opaque:%s\n",p_opaque);
+    printf("cip:%s\n",p_cip);
+    printf("mport:%s\n",p_mport);
+
+    printf("\n");
+
 }

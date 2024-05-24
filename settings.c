@@ -34,6 +34,7 @@ int sip_local_port = LOCAL_SIP_PORT ;
 int rtp_local_port = LOCAL_RTP_PORT ;
 int maxservers =0;
 int maxwifi =0;
+int debug =0; //turns on debug messages to usb serial, overriden by debug in SD and DEBUG define
 
 const char * wifi_ssid[MAXWIFI];
 const char * wifi_pass[MAXWIFI];
@@ -46,7 +47,8 @@ const char *sip_username[MAXSERVERS];
 const char *sip_password[MAXSERVERS];
 const char *sip_login[MAXSERVERS];
 const char *autodial[MAXSERVERS];
-//const char *sip_realm[MAXSERVERS];
+const char *server_realm[MAXSERVERS];
+int regwithrealm[MAXSERVERS];
 
 int SDFileExists(char * filename){
     FRESULT fr;
@@ -176,6 +178,9 @@ void ini_file_parse(FRESULT fr){
 
               sprintf(dname,"SERVER%i:address",d);
               server_addr[d] = iniparser_getstring(ini, dname,SERVER_ADDR);
+
+              sprintf(dname,"SERVER%i:realm",d);
+              server_realm[d] = iniparser_getstring(ini, dname,SERVER_REALM);
              
               sprintf(dname,"SERVER%i:port",d);
               server_port[d] = iniparser_getint(ini, dname,SERVER_PORT );
@@ -191,9 +196,12 @@ void ini_file_parse(FRESULT fr){
 
               sprintf(dname,"SERVER%i:autodial",d);
               autodial[d] = iniparser_getstring(ini, dname,"0000" );
+              
+              sprintf(dname,"SERVER%i:regwithrealm",d);
+              regwithrealm[d] = iniparser_getint(ini, dname,0 );
 
           }
-          
+          debug = iniparser_getint(ini, "TEST:debug",DEBUG );          
    
          printf("Loaded INI\n\r");
          SDStatus=0;

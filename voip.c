@@ -1,8 +1,19 @@
+/**
+ * TELECOW 
+ *
+ * https://github.com/ExtremeElectronics/TeleCow
+ *
+ * voip.c
+ *
+ * Copyright (c) 2024 Derek Woodroffe <tesla@extremeelectronics.co.uk>
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
 
 #include <string.h>
 #include <stdlib.h>
 
-#include "pico/stdlib.h"
+#include "pico/stdlib.h" 
 #include "pico/cyw43_arch.h"
 #include "pico/multicore.h"
 
@@ -26,42 +37,49 @@
 
 #include "voip.h"
 
-#define STATUSLINE3 52
-#define STATUSLINE2 41
-#define STATUSLINE1 30
-#define STATUSLINEP 44
-#define DISPLAYWIDTH 14
+//time messages are on display 
+#define DISPTIME 10
 
 int ReRegistrationTimer=0;
 int SipTimerCounter=0;
 int SipTimerCounter10=0;
 struct repeating_timer siptimer;
 
-int registered=0; //non zero when registered.
+int registered=0; //non zero when registered with server
 
 uint8_t usedwifi=0;
-extern const char *wifi_ssid[MAXWIFI];
-extern const char *wifi_pass[MAXWIFI];
+
+uint8_t ringcnt=0;
+
+//from settings.c
+extern const char *wifi_ssid[];
+extern const char *wifi_pass[];
 
 extern int maxservers;
+extern int debug;
 
 extern int SDStatus; // 0 no sd, 1 sd detected, 2 read ini
 extern int sip_local_port; //my sip port
 extern int rtp_local_port; //my rtp port
 extern int maxwifi; // max number of wifi details in SD card
-extern const char *server_name[MAXSERVERS]; // = DESTINATION_name ;
-extern const char *server_addr[MAXSERVERS]; // = DESTINATION_ADDR ;
-extern const char *autodial[MAXSERVERS]; // = AUTO Dial number ;
-extern const int server_port[MAXSERVERS]; // = DESTINATION_PORT ;
+extern const char *server_name[]; // = DESTINATION_name ;
+extern const char *server_addr[]; // = DESTINATION_ADDR ;
+extern const char *autodial[]; // = AUTO Dial number ;
+extern const int server_port[]; // = DESTINATION_PORT ;
+extern const char *server_realm[]; //realm = DNS name of server mostlikly
+extern const char *sip_login[]; //realm = DNS name of server mostlikly
 
+//from sip_parse
 extern char p_cip[]; //client RDP ip ???? 
 extern uint16_t p_mport; //client RDP port
 extern char p_from[]; //from from parse
-
 extern enum Method p_method;
 
+//display backgrounds
 extern char telecow1306[];
 extern char telecow1306a[];
+//keep track of what we have displayed.
+enum PhoneState LastPhState;
 
 extern uint8_t RTP_buff[]; //secondary outgoing RTP buffer
 
@@ -70,10 +88,10 @@ int server=0; // server settings selected.
 int sip_server_port; //port for sip server
 int rdp_og_port;
 
+//keyboard vars & digit store
 char lastkey;
-
 char dialdigits[40];
-uint8_t ddcnt=0;
+uint8_t ddcnt=0; 
 
 //sound
 //extern uint8_t MikeBuffer[];
@@ -87,22 +105,27 @@ ip_addr_t sip_target_addr;
 ip_addr_t rdp_target_addr;
 ip_addr_t my_addr;
 
-int rdp_target_port=5062; // should be set from parse.
+int rdp_target_port=5062; //backstop - should be set from parse.
 
-int GotSipData=0;
+//int GotSipData=0;
 int GotRtpData=0;
 
+//status flags
 volatile uint8_t online=0;
 volatile uint8_t SendSound=0;
 volatile uint8_t sendingudp=0;
 
 uint8_t enablertp=0;
 
-extern uint8_t s_buffer [2048]; //sip buffer - defined in sip_parse 
+uint8_t s_buffer[9][2048]; //sip buffer - 10 packets 
+uint16_t b_in=0;  //buffer pointers
+uint16_t b_out=0; //buffer pointers
 uint8_t r_buffer[1024]; //rtp UDP buffer
-extern uint16_t fringpos;
+extern uint16_t fringpos; //ringer pointer
 
+//display vars
 enum PhoneState disp_state;
+//volatile uint8_t Core1Display=0; //when ready hand over display to core1
 
 void halt(void){
     //dfa ...
@@ -116,17 +139,17 @@ void halt(void){
 
 static void udpReceiveSipCallback(void *_arg, struct udp_pcb *_sip_pcb,struct pbuf *_p, const ip_addr_t *_addr,uint16_t _port) {
     char *_pData = (char *)_p->payload;
-  
-    if (GotSipData){
-        printf("Overrun on SIP RX \n");
-    }
-//    strcpy(s_buffer,_pData); // ok as sip is strings, honest gov. 
     uint16_t x; 
-    GotSipData = _p->len;
-    for(x=0;x<GotSipData;x++){
-       s_buffer[x]=_pData[x];
+    for(x=0;x<_p->len;x++){
+       s_buffer[b_in][x]=_pData[x];
     }
-    s_buffer[x]=0; //zero terminate, just in case :) 
+    s_buffer[b_in][x]=0; //zero terminate, just in case :) 
+    b_in++;
+    if (b_in>9){b_in=0;}
+    if(b_in==b_out){
+        printf("\n\n!!!!!!! Overrun on SIP RX !!!!!!! \n");
+    }     
+     
      
     pbuf_free(_p); // don't forget to release the buffer!!!!
 //    log_file_save("## SIP Receive:\n",s_buffer);
@@ -145,17 +168,6 @@ static void udpReceiveRtpCallback(void *_arg, struct udp_pcb *_rtp_pcb,struct pb
     pbuf_free(_p); // don't forget to release the buffer!!!!
 //    log_file_save("## RTP Receive:\n",s_buffer);
 }
-
-/*
-void process_RTP_in(char * r_b,uint16_t len){
-    if (enablertp){
-            RTPPacket_deserialize(r_b, len);
-            for(uint16_t x=0;x<SamplesPerPacket;x++){
-               AddToSpkBuffer(r_b[x+12]);
-            }
-    }        
-}
-*/
 
 void init_udp(){
     err_t er;
@@ -184,7 +196,7 @@ void init_udp(){
 
 void send_udp_sip(char* msg,int msglen){
     //length WITHOUT trailing 0
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, msglen+1, PBUF_RAM);
+    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, msglen, PBUF_RAM);
     char *req = (char *)p->payload;
     memset(req, 0, msglen+1);
     int a;
@@ -193,11 +205,10 @@ void send_udp_sip(char* msg,int msglen){
     err_t er = udp_sendto(sip_pcb, p, &sip_target_addr, sip_server_port);
     pbuf_free(p);
     if (er != ERR_OK) {
-         printf("Failed to send UDP packet! error=%d", er);
+        printf("Failed to send UDP packet! error=%d", er);
     } else {
 //        printf("Sent packet \n\n");
     }
-//    sleep_ms(100);
 //    log_file_save("## Send:\n",msg);
 }
 
@@ -207,9 +218,12 @@ void send_sip_udp_blocking(char* msg,int msglen,int debug){
        while(sendingudp==1) sleep_ms(1);
        sendingudp=1;
        send_udp_sip( msg,msglen);
-//       sleep_ms(50);
        sendingudp=0;
-       if(debug) printf("SIP_UDP_SEND\n%s\n",msg);
+       if(debug){
+          TXTEXT
+          printf("\nSIP TX:\n%s\n",msg);
+          CLTEXT
+       }   
    }else{
        printf("Not online\n");
    }    
@@ -225,36 +239,33 @@ void send_udp_rdp(char* msg,int msglen){
     req[a]=0;
     //use p_cip and p_media as RDP ports.
     ipaddr_aton(p_cip, &rdp_target_addr);
-//    rdp_og_port=atoi(p_mport);
     if(rdp_og_port<99){
       printf("RDP PORT INVALID %i \n",rdp_og_port);
     }
     err_t er = udp_sendto(rtp_pcb, p, &rdp_target_addr, rdp_og_port);
     pbuf_free(p);
     if (er != ERR_OK) {
-         printf("Failed to send UDP packet! error=%d", er);
+        printf("Failed to send UDP packet! error=%d", er);
     } else {
 //        printf("Sent packet \n\n");
     }
-//    sleep_ms(100);
 //    log_file_save("## Send:\n",msg);
 }
 
 void send_rdp_udp_blocking(char* msg,int msglen,int debug){
   //length WITHOUT trailing 0
-   if (online){
-       while(sendingudp==1) sleep_ms(1);
-       sendingudp=1;
-       send_udp_rdp( msg,msglen);
-//       sleep_ms(50);
-       sendingudp=0;
-       if(debug) printf("RDP_UDP_SEND\n%s\n",msg);
-   }else{
-       printf("Not online\n");
-   }    
+    if (online){
+        while(sendingudp==1) sleep_ms(1);
+        sendingudp=1;
+        send_udp_rdp( msg,msglen);
+        sendingudp=0;
+        if(debug) printf("RDP_UDP_SEND\n%s\n",msg);
+    }else{
+        printf("Not online\n");
+    }    
 }
 
-
+//setup gpio port for control
 void gpio_conf(void){
     gpio_set_dir(RING,GPIO_IN);
     gpio_pull_down(RING);
@@ -267,6 +278,15 @@ void gpio_conf(void){
     
 }
 
+void set_host_name(const char*hostname)
+{
+    cyw43_arch_lwip_begin();
+    struct netif *n = &cyw43_state.netif[CYW43_ITF_STA];
+    netif_set_hostname(n, hostname);
+    netif_set_up(n);
+    cyw43_arch_lwip_end();
+}
+
 
 void init_network(){
 
@@ -276,11 +296,17 @@ void init_network(){
     }
     cyw43_arch_enable_sta_mode();
 
+    char hostname[20];
+    sprintf(hostname,"%s-%s",HOSTNAME,sip_login[server]);
+    printf("Set hostname to %s\n",hostname);
+    
+    set_host_name(hostname);
+    //set_host_name("PiTeleCow");
+
     if(maxwifi==0){
         printf("No wifi details maxwifi=0\n");
         halt();
     }
-
 
     printf("Connecting to Wi-Fi %s ...\n",wifi_ssid[usedwifi]);
       
@@ -302,19 +328,19 @@ void init_network(){
                  t=0;
                  if ((usedwifi>maxwifi) || (wifi_ssid[usedwifi][0]==0) ){
                       printf("\n\nSorry, given up with the WIFI here\n");
-                      drawStatus("No Wifi Conn",STATUSLINEP);
+                      drawStatusCentered("No Wifi Conn",STATUSLINEP,10);
                       sleep_ms(1000);
                       halt();
                  }
             }
         } else {
             printf("\n\n************ Connected to %s **************\n\n",wifi_ssid[usedwifi]);
-            drawStatus("  WIFI Conn",STATUSLINEP);
+            drawStatusCentered("WIFI Conn",STATUSLINEP,10);
             printf("MyIP %s - Ports SIP:%i RTP:%i\n",ip4addr_ntoa(netif_ip4_addr(netif_list)),sip_local_port,rtp_local_port);
-            printf("SIP Server Ip %s:%i\n\n",server_addr[server],sip_server_port );
+            printf("SIP Server Ip %s:%i Realm %s\n\n",server_addr[server],server_port[server],server_realm[server] );
             printf("*************************************\n\n");
             char buffer[100];
-            sprintf(buffer,"MyIP %s:%i:%i -  Dest Ip %s:%i \n\n",ip4addr_ntoa(netif_ip4_addr(netif_list)),sip_local_port,rtp_local_port,server_addr[server],sip_server_port );
+            sprintf(buffer,"MyIP %s:%i:%i -  Dest Ip %s:%i Realm:%s \n\n",ip4addr_ntoa(netif_ip4_addr(netif_list)),sip_local_port,rtp_local_port,server_addr[server],server_port[server],server_realm[server] );
             log_file_save("## WiFi :/n",buffer);
             online=1;
         }
@@ -322,31 +348,6 @@ void init_network(){
 
     printf("\nWiFi Ready...\n");
     init_udp();
-}
-
-void DispConn(char * contact){
-    char d1[DISPLAYWIDTH+1];
-    char d2[DISPLAYWIDTH+1];
-    if(contact){
-        uint8_t c1=0,c2=0,x=0;
-        while((contact[x]!=0) &&(x<DISPLAYWIDTH*2)){
-           if(x<DISPLAYWIDTH){
-               d1[c1]=contact[x];
-               c1++;
-               d1[c1]=0;
-           }else{  
-               d2[c2]=contact[x];
-               c2++;
-               d2[c2]=0;
-           }
-           x++;
-        }  
-        drawStatus(d1,STATUSLINE2);
-        drawStatus(d2,STATUSLINE3);
-    }else{
-        drawStatus(" ",STATUSLINE2);
-        drawStatus(" ",STATUSLINE3);
-    }
 }
 
 void contactfromfrom(char * from, char *r){
@@ -382,49 +383,104 @@ void contactfromfrom(char * from, char *r){
       }
     }
 
-
     printf("disp %s \n",r);
 
 }
 
 void StatusClear(void){
-   drawStatus("               ",STATUSLINE1);   //fill rectangle ????????
-   drawStatus("               ",STATUSLINE2);
-   drawStatus("               ",STATUSLINE3);
+    drawStatus("               ",STATUSLINE1);   //fill rectangle ????????
+    drawStatus("               ",STATUSLINE2);
+    drawStatus("               ",STATUSLINE3);
 }
 
+
+//update display from ph_status changes.
+void display_ph_status(){
+    if(ph_state!=LastPhState){
+        LastPhState=ph_state;
+        printf("Disp State change \n");
+        printPhoneState(LastPhState);
+        
+        if(LastPhState==PS_IDLE){
+            drawStatus("  ",STATUSLINE1);
+            DispConn(" ");
+        }
+        if(LastPhState==PS_REGISTERED){
+            drawStatusCentered("Registered",STATUSLINE1,4);
+            drawStatusCentered(sip_login[server],STATUSLINE2,4);
+            sleep_ms(DISPTIME);
+        }                   
+        if(LastPhState==PS_NOT_REGISTERED){
+            drawStatusCentered("NOT Registered",STATUSLINE1,4);
+            sleep_ms(DISPTIME);
+        }                   
+        if(LastPhState==PS_RINGING){
+            if (fringpos==0)fringpos=1;
+            printf("################################################ STATED RINGER\n");
+            drawStatusCentered("Ring Ring",STATUSLINE1,4);
+
+            char r[99];
+            contactfromfrom(p_from,r);
+            DispConn(r);
+            sleep_ms(1500);             
+        }
+        if(LastPhState==PS_DIALLING){
+            printf("################################################ DIALING\n");
+            drawStatusCentered(" Dialing ",STATUSLINE1,4);
+
+            char r[99];
+            sprintf(r,"%s",c_call);
+            DispConn(r);
+            sleep_ms(DISPTIME);             
+        }
+        if(LastPhState==PS_RINGTONE){
+            printf("################################################ GOT RINGTONE\n");
+            drawStatusCentered("  Calling ",STATUSLINE1,4);
+
+            char r[99];
+            sprintf(r,"%s",c_call);
+            DispConn(r);
+            sleep_ms(DISPTIME);
+        }
+        if(LastPhState==PS_OG_INCALL){ //initiated here
+            printf("################################################ CONNECTED IH\n");
+            drawStatusCentered(" Connected",STATUSLINE1,4);             
+             
+            char r[99];
+            sprintf(r,"%s",c_call);
+            DispConn(r);
+            sleep_ms(DISPTIME);
+        }
+        if(LastPhState==PS_IC_INCALL){ //initiated there
+            printf("################################################ CONNECTED IT\n");
+            drawStatusCentered(" Connected",STATUSLINE1,4);
+
+            char r[99];
+            contactfromfrom(p_from,r);
+            DispConn(r);
+            sleep_ms(DISPTIME);
+        }
+        if(cl_state==SS_ERROR){ //initiated there
+            printf("################################################ ERROR\n");
+            drawStatusCentered("ERROR",STATUSLINE1,4);
+        }
+        
+
+    }//if
+}
 
 // ******************************* CORE 1 *************************************
 
 void Core1Main(void){
      printf("Core 1 -\n");
      StartSoundTimer();
-     
-     enum SipState LastClState;
-     while(1){
-        if(cl_state!=LastClState){
-            if(cl_state==SS_IDLE){
-                StatusClear();
-            }
-   
-   
-            
-            LastClState=cl_state;
-        
-        }
-        if(cl_state==SS_RINGING){
-             if (fringpos==0)fringpos=1;
-             printf("################################################STATED RINGER\n");
-             
-             drawStatus("   Ringing",STATUSLINE1);
 
-             char r[99];
-             contactfromfrom(p_from,r);
-             DispConn(r);
-             sleep_ms(1500);             
-             drawStatus("          ",STATUSLINE1);
-         }
-     }
+     int dc=0;
+
+     sleep_ms(1000);
+     while(1){
+         tight_loop_contents(); //twiddle your peripherials. 
+     }//while
 }
 
 
@@ -435,10 +491,21 @@ void tenthsec(){
     //10 times a sec
 }
 
+void doring(){
+    if(LastPhState==PS_RINGING){
+        if (fringpos==0)fringpos=1;
+    }
+}
+
 void sec1(){
        // every sec
         if (ReRegistrationTimer>1){
             ReRegistrationTimer--;
+        }
+        ringcnt++;
+        if(ringcnt>2){
+          ringcnt=0;
+          doring();
         }
 //        printf("SIPTIMER:%i\n",ReRegistrationTimer);
 }
@@ -482,10 +549,12 @@ int main() {
     init_sound();    
     sleep_ms(2000); //wait for serial usb
     char temp[100];
+    
+    CLTEXT //force white text
     splash();    
     
     printf("**************** STARTING **************** \n\n");
-
+    
     //display Init
     printf("Display Init\n");
     SSD1306_init(0x3C,SSD1306_W128xH64);
@@ -503,12 +572,17 @@ int main() {
             drawStatus(" No SD Card",STATUSLINEP);
         }
         if(sd_state==2){
-            printf("Failed to Parse\n");
+            printf("SD Failed to Parse\n");
             drawStatus("Parse Failed",STATUSLINEP);
         }
         halt();
     }
     log_file_init("### STARTLOG\n");    
+    
+    if(debug){
+       sleep_ms(200);
+       printf("**************** DEBUG %i **************** \n\n",debug);
+    }
         
     //keyboard init
     init_keyboard();
@@ -517,7 +591,7 @@ int main() {
     RTPPacket_init();
         
     //Start Core 1
-    multicore_reset_core1();
+//    multicore_reset_core1();
     multicore_launch_core1(Core1Main);
     printf("\n################### Core 1 Started #################################\n\n");
     log_file_save("Core 1 started ","\n");
@@ -541,28 +615,27 @@ int main() {
     
     sprintf(temp,"  Server %i ",server);
     drawStatus(temp,STATUSLINEP);
+    sprintf(temp," %s ",server_name[server]);
+    drawStatusCentered(temp,STATUSLINEP+10,8);
 
     sleep_ms(600);
     
-    printf("\nContacting Server:%i...\n",server);
+    printf("\nContacting Server:%i - %s...\n",server,server_name[server]);
 
     drawStatus("  Conn WiFi",STATUSLINEP);
     init_network();
     
     printf("After Init Network\n");
     sleep_ms(100);
+
+    //setrandom
+    srandfrommike();
     
     sip_init();
-    printf("After Init Sip\n");
+//    printf("After Init Sip\n");
     sleep_ms(100);
 
-    //tx();
-    
-    //printf("After First TX \n");
-    //sleep_ms(100);
-    
     //start reregistration timer
-    printf("Init SIP Timer");
     init_timer();
 
     printState(cl_state);
@@ -570,6 +643,7 @@ int main() {
     //set up display
     SSD1306_background_image(telecow1306a);
     SSD1306_sendBuffer();
+
 
     //force inital register
     cl_state=SS_REGISTER_UNAUTH;
@@ -608,14 +682,14 @@ int main() {
             if (k=='B'){
                 printf("\n\n\n\n**************************** Make CALL To %s ************************ \n",autodial[server]);            
                 log_file_save("## BUTTON "," Make Call To autodial number\n");
-                request_ring(autodial[server], "Me");
+                request_dial(autodial[server], "Me");
             }   
 
             //ANSWER
              if (k=='A'){
                 if(ddcnt>0){
                     dialdigits[ddcnt]=0;
-                    request_ring(dialdigits,"What???");
+                    request_dial(dialdigits,"What???");
                     DispConn(dialdigits);
                     drawStatus("Dialing",STATUSLINE1);
                     ddcnt=0;
@@ -630,7 +704,7 @@ int main() {
                 }
             }
             
-            if ( ((k>='0') && (k<='9')) || k=='#' ){
+            if ( ((k>='0') && (k<='9')) || k=='#' || k=='*' ){
                dialdigits[ddcnt]=k;
                ddcnt++;
                dialdigits[ddcnt]=0;
@@ -640,56 +714,34 @@ int main() {
         }
         if(k==0)lastkey=0;
       
-       //SIP
-        if(GotSipData){
-            GotSipData=0;
-            rx();
+       //SIP RX
+        if(b_in!=b_out){
+            if(debug){
+                RXTEXT
+                printf("SIP RX:\n%s\n",s_buffer[b_out]);
+                CLTEXT    
+            }
+            rx(b_out);
+            b_out++;
+            if(b_out>9){b_out=0;}
             tx();
             printState(cl_state);
             printPhoneState(ph_state);
         }
 
-/*
-        if(cl_state==SS_REGISTERED){
-          if(disp_state!=cl_state){
-            if(ReRegistrationTimer==0){  
-               printf("Started ReregTimer \n");
-               ReRegistrationTimer=SIP_REREGISTRATIONDELAY;
-            }
-            drawStatus(" Regsitered",STATUSLINE2);
-            disp_state=cl_state;
-          }
-        }
-*/
-        
-        //RTP RX
-/*
-        if ((GotRtpData>0) && (enablertp==1)){
-
-//            printf("GotRTP %i\n",GotRtpData);
-            RTPPacket_deserialize(r_buffer, GotRtpData);
-//            RTPPacket_RTPDisplay();
-//            for(uint16_t x=0;x<SamplesPerPacket;x++){
-//               AddToSpkBuffer(r_buffer[x+12]);
-//            }
-//            GotRtpData=0;
-
-            process_RTP_in(r_buffer,GotRtpData);
-            GotRtpData=0;
-        }     
-*/        
         //RTP TX
         if ((SendSound==1) && (enablertp==1)){
            int plen=0;
            plen=RTPPacket_RTPPacket(RTPSndBuffer,SamplesPerPacket);
-//           printf("Send RTP\n");
-
-//           sprintf(p_cip,"10.42.42.43");
-//           rdp_og_port=5055;             
 
            send_rdp_udp_blocking(RTP_buff,plen,0);
            SendSound=0;
         }        
+        
+        display_ph_status();
+        
+        sleep_ms(10);
+        //tight_loop_contents();
     }
         
     cyw43_arch_deinit();

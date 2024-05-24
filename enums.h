@@ -4,7 +4,8 @@ enum SipState {
     SS_REGISTER_AUTH,
     SS_REGISTERED,
     SS_INVITE_UNAUTH,
-    SS_INVITE_UNAUTH_SENT,
+//    SS_INVITE_UNAUTH_SENT,
+    SS_INVITE_PAUTH,
     SS_INVITE_AUTH,
     SS_RINGING,
     SS_RINGTONE,
@@ -16,14 +17,15 @@ enum SipState {
 };
 
 enum PhoneState{
-    PS_IDLE,	
-//    PS_REGISTERED,
-    PS_RINGING,
-    PS_DIALLING, 
-    PS_ANSWER,	
-    PS_HANGUP,	
-    PS_DECLINED,        
-    PS_ESTABLISHED,     
+    PS_IDLE,
+    PS_DIALLING,	
+    PS_REGISTERED,
+    PS_NOT_REGISTERED,
+    PS_RINGTONE, //og call
+    PS_RINGING, //ic call 
+    PS_OG_INCALL,
+    PS_IC_INCALL,	
+    PS_DECLINED
 };
 
 enum CancelReason {
@@ -37,9 +39,11 @@ enum Status {
     ST_RINGING_180,
     ST_SESSION_PROGRESS_183,
     ST_OK_200,
+    ST_FORBIDDEN_403,
     ST_UNAUTHORIZED_401,
     ST_PROXY_AUTH_REQ_407,
     ST_BUSY_HERE_486,
+    ST_REQUESTS_MERGED_482,
     ST_REQUEST_CANCELLED_487,
     ST_SERVER_ERROR_500,
     ST_DECLINE_603,
