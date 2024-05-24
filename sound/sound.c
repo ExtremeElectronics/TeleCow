@@ -95,6 +95,18 @@ uint16_t fring(uint16_t s_in){
     }  
 }
 
+void srandfrommike(void){
+    int a;
+    long v;
+    for(a=0;a<100;a++){
+       v=v+adc_read();
+       sleep_us(3141);
+    }  
+    printf("Rand seed %i\n",v);
+    srand(v);
+
+}
+
 void SetPWM(void){
     gpio_init(soundIO1);
     gpio_set_dir(soundIO1,GPIO_OUT);
@@ -207,11 +219,11 @@ bool Sound_Timer_Callback(struct repeating_timer *t){
         MikeIn=0;
     }
 
-    lc++;
-    if (lc>8000){
-      lc=0;
+//    lc++;
+//    if (lc>8000){
+//      lc=0;
 //      printf("^");
-    }
+//    }
     return 1; // make repeating
 }
 

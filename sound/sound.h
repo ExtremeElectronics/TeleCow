@@ -9,6 +9,7 @@
 
 uint16_t fring(uint16_t s_in);
 //uint8_t ftext(uint8_t s_in);
+void srandfrommike(void);
 void SetPWM(void);
 void SetA2D(void);
 void ZeroMikeBuffer(void);
