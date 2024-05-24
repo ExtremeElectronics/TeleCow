@@ -334,6 +334,48 @@ void SSD1306_background_image(unsigned char *bitmap){
     }
 }
 
+
+void drawStatusCentered(char * text,uint8_t anchor_y,uint8_t border){
+    SSD1306_fillRect( border, anchor_y, SSD1306_width-border*2, anchor_y+8,SSD1306_SUBTRACT);
+    uint8_t x,len;
+    len=strlen(text)*8; //fontwidth 8
+    x=(SSD1306_width-(border*2)-len)>>1;    
+    SSD1306_drawText(font_8x8,text, border+x,anchor_y,SSD1306_ADD,SSD1306_DEG0);
+    SSD1306_sendBuffer();
+   
+
+}
+
+void DispConn(char * text){
+    char d1[DISPLAYWIDTH+1];
+    char d2[DISPLAYWIDTH+1];
+    d1[0]=0;
+    d2[0]=0;
+    if(text){
+        uint8_t c1=0,c2=0,x=0;
+        while((text[x]!=0) &&(x<DISPLAYWIDTH*2)){
+           if(x<DISPLAYWIDTH){
+               d1[c1]=text[x];
+               c1++;
+               d1[c1]=0;
+           }else{
+               d2[c2]=text[x];
+               c2++;
+               d2[c2]=0;
+           }
+           x++;
+        }
+        drawStatus(d1,STATUSLINE2);
+        drawStatus(d2,STATUSLINE3);
+    }else{
+        drawStatus(" ",STATUSLINE2);
+        drawStatus(" ",STATUSLINE3);
+    }
+}
+
+
+
+
 /*
 void SSD1306_background_image(unsigned char *bitmap){ 
 //this is all sorts of wrong because I reused code from anothe project

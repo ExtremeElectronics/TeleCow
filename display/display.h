@@ -1,6 +1,15 @@
 #include <string.h>
 #include "hardware/i2c.h"
 
+//position of lines in display
+#define STATUSLINE3 52
+#define STATUSLINE2 41
+#define STATUSLINE1 30
+#define STATUSLINEP 44
+//display width in chars (allowing for border)
+#define DISPLAYWIDTH 14
+
+
 /// Register addresses from datasheet
 enum SSD1306_REG_ADDRESSES {
     SSD1306_CONTRAST = 0x81,
@@ -139,3 +148,7 @@ void SSD1306_background_image(unsigned char *bitmap);
 void drawStatus( const char *text,uint8_t anchor_y);
 
 void SSD1306_fillRect( uint8_t x_start, uint8_t y_start, uint8_t x_end, uint8_t y_end,enum SSD1306_WriteMode mode);
+
+void DispConn(char * text);
+void drawStatusCentered(char * text,uint8_t anchor_y, uint8_t border);
+
